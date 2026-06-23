@@ -11,11 +11,11 @@ class ToolRouterService:
     def process_question(question):
 
         prompt = f"""
-{SYSTEM_PROMPT}
+            {SYSTEM_PROMPT}
 
-User Question:
-{question}
-"""
+            User Question:
+            {question}
+        """
 
         response = LLMService.generate(prompt)
 
@@ -24,30 +24,28 @@ User Question:
         data = JsonParser.parse_response(response)
 
         if data is None:
-
             return {
                 "status": False,
                 "message": "Unable to understand request.",
                 "data": None
             }
 
-        intent = data.get(
-            "intent",
-            ""
-        ).lower()
+        intent = data.get("intent", "").lower().strip()
 
+        # -----------------------------
+        # CREATE TICKET FLOW
+        # -----------------------------
         if intent == "create_ticket":
 
-            issue = data.get(
-                "issue",
-                ""
-            )
+            issue = data.get("issue", "")
 
-            if not issue.strip():
+            # ✅ FIX: strong validation (IMPORTANT)
+            invalid_issues = ["", "...", "none", "null", "unknown", "n/a"]
 
+            if issue is None or issue.strip().lower() in invalid_issues:
                 return {
                     "status": False,
-                    "message": "Please provide issue details.",
+                    "message": "Please provide valid issue details.",
                     "data": None
                 }
 
@@ -59,12 +57,19 @@ User Question:
                 "data": ticket
             }
 
+        # -----------------------------
+        # GENERAL QUERY FLOW
+        # -----------------------------
         elif intent == "general_query":
 
-            answer = data.get(
-                "answer",
-                ""
-            )
+            answer = data.get("answer", "")
+
+            if not answer:
+                return {
+                    "status": False,
+                    "message": "Unable to generate response.",
+                    "data": None
+                }
 
             return {
                 "status": True,
@@ -72,6 +77,9 @@ User Question:
                 "data": None
             }
 
+        # -----------------------------
+        # FALLBACK
+        # -----------------------------
         return {
             "status": False,
             "message": "Unsupported intent.",
