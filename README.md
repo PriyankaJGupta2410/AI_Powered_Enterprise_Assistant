@@ -39,21 +39,21 @@ The application follows a layered architecture. User requests are validated and 
 
 ```text
 
-User
- ↓
-API Request (/ask)
- ↓
-Validation
- ↓
-Tool Router Service
- ↓
-Ollama (Llama3)
- ↓
-Intent Detection
- ↓
-Ticket Tool / General Answer
- ↓
-Final Response
+                      User
+                      ↓
+                      API Request (/ask)
+                      ↓
+                      Validation
+                      ↓
+                      Tool Router Service
+                      ↓
+                      Ollama (Llama3)
+                      ↓
+                      Intent Detection
+                      ↓
+                      Ticket Tool / General Answer
+                      ↓
+                      Final Response
 
 
 ```
