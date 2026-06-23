@@ -38,6 +38,27 @@ A simple AI-powered enterprise assistant built using **FastAPI** and **Ollama (L
 The application follows a layered architecture. User requests are validated and routed through a tool router service. The LLM determines the intent and either invokes a business tool or returns a general answer.
 
 ```text
+
+User
+ ↓
+API Request (/ask)
+ ↓
+Validation
+ ↓
+Tool Router Service
+ ↓
+Ollama (Llama3)
+ ↓
+Intent Detection
+ ↓
+Ticket Tool / General Answer
+ ↓
+Final Response
+
+
+```
+
+```text
                        User
                          │
                          ▼
