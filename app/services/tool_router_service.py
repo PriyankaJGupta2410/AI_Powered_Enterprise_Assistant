@@ -1,4 +1,5 @@
 from app.constants.constants import SYSTEM_PROMPT
+from app.services.conversation_service import ConversationService
 from app.services.llm_service import LLMService
 from app.tools.create_ticket_tool import create_ticket_tool
 from app.utils.json_parser import JsonParser
@@ -8,15 +9,26 @@ from app.utils.logger import logger
 class ToolRouterService:
 
     @staticmethod
-    def process_question(question):
+    def process_question(session_id: str, question: str):
+
+        # -----------------------------------------
+        # Get Conversation History
+        # -----------------------------------------
+        history = ConversationService.get_prompt_history(session_id)
 
         prompt = f"""
             {SYSTEM_PROMPT}
 
-            User Question:
+            Conversation History:
+            {history}
+
+            Current User Question:
             {question}
         """
 
+        # -----------------------------------------
+        # Call LLM
+        # -----------------------------------------
         response = LLMService.generate(prompt)
 
         logger.info(response)
@@ -24,64 +36,107 @@ class ToolRouterService:
         data = JsonParser.parse_response(response)
 
         if data is None:
+
+            assistant_message = "Unable to understand request."
+
+            ConversationService.save_user_message(
+                session_id=session_id,
+                message=question
+            )
+
+            ConversationService.save_assistant_message(
+                session_id=session_id,
+                message=assistant_message
+            )
+
             return {
                 "status": False,
-                "message": "Unable to understand request.",
+                "message": assistant_message,
                 "data": None
             }
 
         intent = data.get("intent", "").lower().strip()
 
-        # -----------------------------
-        # CREATE TICKET FLOW
-        # -----------------------------
+        assistant_message = ""
+        response_data = None
+        status = False
+
+        # =========================================
+        # CREATE TICKET
+        # =========================================
+
         if intent == "create_ticket":
 
-            issue = data.get("issue", "")
+            issue = data.get("issue", "").strip()
 
-            # ✅ FIX: strong validation (IMPORTANT)
-            invalid_issues = ["", "...", "none", "null", "unknown", "n/a"]
+            invalid_values = [
+                "",
+                "...",
+                "none",
+                "null",
+                "unknown",
+                "n/a"
+            ]
 
-            if issue is None or issue.strip().lower() in invalid_issues:
-                return {
-                    "status": False,
-                    "message": "Please provide valid issue details.",
-                    "data": None
-                }
+            if issue.lower() in invalid_values:
 
-            ticket = create_ticket_tool(issue)
+                assistant_message = "Please provide valid issue details."
 
-            return {
-                "status": True,
-                "message": "Ticket created successfully.",
-                "data": ticket
-            }
+            else:
 
-        # -----------------------------
-        # GENERAL QUERY FLOW
-        # -----------------------------
+                ticket = create_ticket_tool(issue)
+
+                status = ticket["status"]
+
+                assistant_message = ticket["message"]
+
+                response_data = ticket["data"]
+
+        # =========================================
+        # GENERAL QUERY
+        # =========================================
+
         elif intent == "general_query":
 
-            answer = data.get("answer", "")
+            answer = data.get("answer", "").strip()
 
-            if not answer:
-                return {
-                    "status": False,
-                    "message": "Unable to generate response.",
-                    "data": None
-                }
+            if answer:
 
-            return {
-                "status": True,
-                "message": answer,
-                "data": None
-            }
+                assistant_message = answer
+                status = True
 
-        # -----------------------------
-        # FALLBACK
-        # -----------------------------
+            else:
+
+                assistant_message = "Unable to generate response."
+
+        # =========================================
+        # UNKNOWN INTENT
+        # =========================================
+
+        else:
+
+            assistant_message = "Unsupported intent."
+
+        # -----------------------------------------
+        # Save Conversation Memory
+        # -----------------------------------------
+
+        ConversationService.save_user_message(
+            session_id=session_id,
+            message=question
+        )
+
+        ConversationService.save_assistant_message(
+            session_id=session_id,
+            message=assistant_message
+        )
+
+        # -----------------------------------------
+        # Return Response
+        # -----------------------------------------
+
         return {
-            "status": False,
-            "message": "Unsupported intent.",
-            "data": None
+            "status": status,
+            "message": assistant_message,
+            "data": response_data
         }
