@@ -1,14 +1,5 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 
 class AskRequest(BaseModel):
-
-    session_id: str = Field(
-        ...,
-        description="Unique session identifier"
-    )
-
-    question: str = Field(
-        ...,
-        min_length=1
-    )
+    question: str

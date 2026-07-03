@@ -519,18 +519,6 @@ app/tests/test_ask_api.py::test_ask_endpoint PASSED
 
 ============================= 3 passed =============================
 ```
----
-
-# Future Enhancements
-
-- Conversation Memory
-- Retrieval Augmented Generation (RAG)
-- Database Integration
-- Docker Support
-- LangChain Integration
-- LangGraph Integration
-- Authentication and Authorization
-- Multiple Business Workflows
 
 ---
 

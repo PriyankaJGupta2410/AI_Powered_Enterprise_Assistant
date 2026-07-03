@@ -4,4 +4,3 @@ __pycache__/
 *.pyd
 *.pyc
 __init__.py
-.env
