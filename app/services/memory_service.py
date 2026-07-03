@@ -57,7 +57,7 @@ class MemoryService:
                     role,
                     message
                 FROM conversation_memory
-                ORDER BY id DESC
+                ORDER BY created_at DESC
                 LIMIT %s
             """
 
