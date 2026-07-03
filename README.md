@@ -528,6 +528,7 @@ DB_PORT=5432
 DB_NAME=enterprise_assistant
 DB_USER=postgres
 DB_PASSWORD=your_password
+```
 ------------------------------------------------------------------------
 
 # PostgreSQL Setup
