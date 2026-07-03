@@ -16,36 +16,53 @@ class ToolRouterService:
         # -----------------------------
         conversation_context = MemoryService.build_context(question)
 
+        logger.info("=" * 80)
+        logger.info("CONVERSATION HISTORY")
+        logger.info(conversation_context)
+        logger.info("=" * 80)
+
         # -----------------------------
         # 2. BUILD PROMPT
         # -----------------------------
         prompt = f"""
-{SYSTEM_PROMPT}
+            {SYSTEM_PROMPT}
 
-Conversation History
---------------------
-{conversation_context}
+            Conversation History
+            --------------------
+            {conversation_context}
 
---------------------
+            --------------------
 
-Current Question
---------------------
-{question}
+            Current Question
+            --------------------
+            {question}
 
-IMPORTANT:
-- Use history only for context
-- Decide intent ONLY from current question
-- Do not repeat previous actions
-"""
+            IMPORTANT:
+            - Use history only for context
+            - Decide intent ONLY from current question
+            - Do not repeat previous actions
+            """
+        
+        logger.info("=" * 80)
+        logger.info("PROMPT SENT TO LLM")
+        logger.info(prompt)
+        logger.info("=" * 80)
 
         # -----------------------------
         # 3. CALL LLM
         # -----------------------------
         response = LLMService.generate(prompt)
 
+        logger.info("=" * 80)
+        logger.info("RAW LLM RESPONSE")
         logger.info(response)
+        logger.info("=" * 80)
 
         data = JsonParser.parse_response(response)
+        logger.info("=" * 80)
+        logger.info("PARSED JSON")
+        logger.info(data)
+        logger.info("=" * 80)
 
         if data is None:
             return {
@@ -82,15 +99,25 @@ IMPORTANT:
             # -----------------------------
             ticket = create_ticket_tool(issue)
 
-            assistant_msg = (
-                f"Ticket created successfully. "
-                f"Ticket ID: {ticket['ticket_id']}, Issue: {issue}"
-            )
+            logger.info("=" * 80)
+            logger.info("TICKET CREATED")
+            logger.info(ticket)
+            logger.info("=" * 80)
+
+            assistant_message = f"""
+                Ticket created successfully.
+
+                Ticket Details:
+                - Ticket ID: {ticket['ticket_id']}
+                - Issue: {ticket['issue']}
+                - Status: {ticket['status']}
+                - Created At: {ticket['created_at']}
+            """
 
             # -----------------------------
             # SAVE ASSISTANT MESSAGE
             # -----------------------------
-            MemoryService.save_message("assistant", assistant_msg)
+            MemoryService.save_message("assistant", assistant_message.strip())
 
             return {
                 "status": True,
@@ -115,8 +142,12 @@ IMPORTANT:
             # -----------------------------
             # SAVE MEMORY
             # -----------------------------
+            assistant_message = f"""
+                Response:
+                {answer}
+            """
             MemoryService.save_message("user", question)
-            MemoryService.save_message("assistant", answer)
+            MemoryService.save_message("assistant", assistant_message.strip())
 
             return {
                 "status": True,

@@ -1,159 +1,145 @@
 # AI-Powered Enterprise Assistant
 
-A simple AI-powered enterprise assistant built using **FastAPI** and **Ollama (Llama3)**. The assistant processes natural language queries and performs business actions through tool calling. Currently, it supports ticket creation with request validation and robust error handling.
+A simple AI-powered enterprise assistant built using **FastAPI**,
+**Ollama (Llama3)** and **PostgreSQL Conversation Memory**. The
+assistant processes natural language queries, performs business actions
+through tool calling, and maintains conversational context across
+requests.
 
----
+------------------------------------------------------------------------
 
 # Features
 
-- FastAPI REST API
-- Natural language understanding using Ollama (Llama3)
-- Tool calling architecture
-- Ticket creation workflow
-- Request validation
-- Error handling and fallback logic
-- JSON response parsing
-- Global exception handling
-- Logging support
-- Unit tests
-- Modular code structure
-- Mock data support
+-   FastAPI REST API
+-   Natural language understanding using Ollama (Llama3)
+-   Tool calling architecture
+-   Ticket creation workflow
+-   Conversation memory using PostgreSQL
+-   Request validation
+-   Error handling and fallback logic
+-   JSON response parsing
+-   Global exception handling
+-   Logging support
+-   Unit tests
+-   Modular code structure
+-   Mock data support
 
----
+------------------------------------------------------------------------
 
 # Tech Stack
 
-- Python 3.11+
-- FastAPI
-- Ollama (Llama3)
-- Pydantic
-- Requests
-- Uvicorn
-- Pytest
+-   Python 3.11+
+-   FastAPI
+-   Ollama (Llama3)
+-   PostgreSQL
+-   psycopg2
+-   Pydantic
+-   Requests
+-   Uvicorn
+-   Pytest
 
----
+------------------------------------------------------------------------
 
 # Architecture
 
-The application follows a layered architecture. User requests are validated and routed through a tool router service. The LLM determines the intent and either invokes a business tool or returns a general answer.
-
-```text
-
+``` text
                           User
-                            ↓
-                      API Request (/ask)
-                            ↓
-                        Validation
-                            ↓
-                      Tool Router Service
-                            ↓
-                      Ollama (Llama3)
-                            ↓
-                      Intent Detection
-                            ↓
-                      Ticket Tool / General Answer
-                            ↓
-                        Final Response
-
-
-```
-
-```text
-                       User
-                         │
-                         ▼
-                  POST /ask Endpoint
-                         │
-                         ▼
-                 FastAPI Application
-                         │
-                         ▼
-                 Request Validation
-                         │
-                         ▼
+                            │
+                            ▼
+                      POST /ask
+                            │
+                            ▼
+                    Request Validation
+                            │
+                            ▼
+             Load Conversation History (PostgreSQL)
+                            │
+                            ▼
+                  Build Context + Prompt
+                            │
+                            ▼
                   Tool Router Service
-                         │
-                         ▼
-                    Ollama (Llama3)
-                         │
-                         ▼
-               Structured JSON Response
-                         │
-          ┌──────────────┴──────────────┐
-          │                             │
-          ▼                             ▼
-     create_ticket                general_query
-          │                             │
-          ▼                             ▼
-  create_ticket_tool()            Generate Answer
-          │                             │
-          ▼                             ▼
-     ticket_service()              JSON Response
-          │
-          ▼
-      JSON Response
+                            │
+                            ▼
+                     Ollama (Llama3)
+                            │
+          ┌─────────────────┴─────────────────┐
+          ▼                                   ▼
+   create_ticket                       general_query
+          │                                   │
+          ▼                                   ▼
+    Ticket Service                    Generate Answer
+          │                                   │
+          └─────────────────┬─────────────────┘
+                            ▼
+              Save Conversation Memory
+                            │
+                            ▼
+                     JSON Response
 ```
 
----
+------------------------------------------------------------------------
 
 # Request Flow
 
-```text
+``` text
 User Question
       │
       ▼
 POST /ask
       │
       ▼
-Request Validation
+Validate Request
       │
       ▼
-Tool Router Service
+Load Conversation History
+      │
+      ▼
+Build Prompt
       │
       ▼
 Ollama (Llama3)
       │
       ▼
-JSON Output
+Intent Detection
       │
-      ├──────────── Ticket Intent
-      │                    │
-      │                    ▼
-      │            create_ticket_tool()
-      │                    │
-      │                    ▼
-      │              ticket_service()
+      ├──────────── create_ticket
+      │                   │
+      │                   ▼
+      │          create_ticket_tool()
+      │                   │
+      │                   ▼
+      │           ticket_service()
       │
-      └──────────── General Query
-                           │
-                           ▼
-                     Generate Answer
-                           │
-                           ▼
-                      Return JSON
+      └──────────── general_query
+                          │
+                          ▼
+                  Generate Answer
+                          │
+                          ▼
+            Save Conversation History
+                          │
+                          ▼
+                  Return Response
 ```
 
----
+------------------------------------------------------------------------
 
 # Business Action
 
 ## Create Ticket
 
-The assistant creates support tickets based on user requests.
+**Request**
 
-### Example
-
-### Request
-
-```json
+``` json
 {
   "question": "Create a ticket for printer issue"
 }
 ```
 
-### Response
+**Response**
 
-```json
+``` json
 {
   "status": true,
   "message": "Ticket created successfully.",
@@ -165,61 +151,66 @@ The assistant creates support tickets based on user requests.
 }
 ```
 
----
+------------------------------------------------------------------------
 
 # Engineering Improvements
 
 ## 1. Tool Calling
 
-Instead of relying on hardcoded keyword matching, the application uses Ollama to determine the user's intent and invoke the appropriate business tool.
+The LLM returns structured JSON with an intent (`create_ticket` or
+`general_query`). The router invokes the correct business tool based on
+that intent instead of relying on keyword matching.
 
-### Flow
+## 2. Conversation Memory
 
-```text
-Question
-   │
-   ▼
-Ollama
-   │
-   ▼
-Structured JSON
-{
-    "intent": "create_ticket",
-    "issue": "printer issue"
-}
-   │
-   ▼
-create_ticket_tool()
-   │
-   ▼
-ticket_service()
-   │
-   ▼
-Generate Ticket ID
-   │
-   ▼
-Return JSON Response
+Conversation history is stored in PostgreSQL.
+
+Flow:
+
+``` text
+User Question
+      │
+      ▼
+Load Previous Messages
+      │
+      ▼
+Build Context
+      │
+      ▼
+LLM
+      │
+      ▼
+Generate Response
+      │
+      ▼
+Save User Message
+      │
+      ▼
+Save Assistant Response
 ```
 
----
+Benefits:
 
-## 2. Error Handling and Fallback Logic
+-   Supports follow-up questions
+-   Maintains context
+-   Improves user experience
+
+## 3. Error Handling
 
 Implemented:
 
-- Empty request validation
-- Missing issue validation
-- Timeout handling
-- JSON parsing fallback
-- Global exception handling
-- Standard response format
-- Logging support
+-   Empty request validation
+-   Missing issue validation
+-   Timeout handling
+-   JSON parsing fallback
+-   Global exception handling
+-   Logging
 
----
+------------------------------------------------------------------------
 
 # Project Structure
 
-```text
+``` text
 enterprise_assistant/
 │
 ├── venv/
@@ -228,8 +219,10 @@ enterprise_assistant/
 │   ├── main.py
 │   │
 │   ├── constants/
-│   │     └── constants.py
-│   │
+|   |     └── constants.py
+|   |
+│   ├── database/
+│   │     └── db.py
 │   ├── exceptions/
 │   │     └── global_exception_handler.py
 │   │
@@ -242,9 +235,9 @@ enterprise_assistant/
 │   │
 │   ├── services/
 │   │     ├── llm_service.py
-│   │     ├── tool_router_service.py
-│   │     └── ticket_service.py
-│   │
+│   │     ├── memory_service.py
+│   │     ├── ticket_service.py
+│   │     └── tool_router_service.py
 │   ├── tools/
 │   │     └── create_ticket_tool.py
 │   │
@@ -265,291 +258,162 @@ enterprise_assistant/
 └── README.md
 ```
 
----
+------------------------------------------------------------------------
 
-# Setup Instructions
+# Setup
 
-## Clone Repository
-
-```bash
-git clone <repository-url>
-cd enterprise_assistant
-```
-
----
-
-# Create Virtual Environment
-
-### Windows
-
-```bash
+``` bash
 python -m venv venv
 ```
 
-Activate:
+Windows
 
-```bash
+``` bash
 venv\Scripts\activate
 ```
 
-### Linux / macOS
+Install dependencies
 
-```bash
-python3 -m venv venv
-```
-
-Activate:
-
-```bash
-source venv/bin/activate
-```
-
----
-
-# Upgrade pip
-
-```bash
-python -m pip install --upgrade pip
-```
-
----
-
-# Install Dependencies
-
-```bash
+``` bash
 pip install -r requirements.txt
 ```
 
----
+Run PostgreSQL and create the conversation_memory table.
 
-# Install Ollama
+Install Ollama:
 
-Verify installation:
-
-```bash
-ollama --version
-```
-
-Pull model:
-
-```bash
+``` bash
 ollama pull llama3
-```
-
-Start Ollama server:
-
-```bash
 ollama serve
 ```
 
-Verify models:
+Run API:
 
-```bash
-ollama list
-```
-
----
-
-# Run FastAPI Server
-
-```bash
+``` bash
 uvicorn app.main:app --reload
 ```
 
-Server URL:
+Swagger:
 
-```text
-http://localhost:8000
-```
+`http://localhost:8000/docs`
 
-Swagger UI:
+------------------------------------------------------------------------
 
-```text
-http://localhost:8000/docs
-```
-
----
-
-# API Endpoint
+# API
 
 ## POST /ask
 
-### Request
-
-```json
+``` json
 {
-  "question": "Create a ticket for email issue"
+  "question":"Create a ticket for email issue"
 }
 ```
 
-### Response
-
-```json
-{
-  "status": true,
-  "message": "Ticket created successfully.",
-  "data": {
-    "ticket_id": "TKT1001",
-    "issue": "email issue",
-    "status": "OPEN"
-  }
-}
-```
-
----
+------------------------------------------------------------------------
 
 # Test Cases
 
-## Test Case 1: Normal Business Query
+### Business Action
 
-### Request
-
-```json
+``` json
 {
-  "question": "Create a ticket for printer not working"
+  "question":"Create a ticket for printer not working"
 }
 ```
 
-### Response
+Expected: Ticket created.
 
-```json
+### Conversation Memory
+
+Request 1
+
+``` json
 {
-  "status": true,
-  "message": "Ticket created successfully.",
-  "data": {
-    "ticket_id": "TKT1001"
-  }
+  "question":"What is FastAPI?"
 }
 ```
 
----
+Request 2
 
-## Test Case 2: Challenging Query
-
-### Request
-
-```json
+``` json
 {
-  "question": "Create ticket"
+  "question":"Can you summarize my previous question?"
 }
 ```
 
-### Response
+Expected: Assistant summarizes the previous question using stored
+conversation.
 
-```json
+### Business Memory
+
+Request 1
+
+``` json
 {
-  "status": false,
-  "message": "Please provide issue details.",
-  "data": null
+  "question":"Create a ticket for printer not working"
 }
 ```
 
----
+Request 2
 
-# Error Handling Examples
-
-## Empty Input
-
-### Request
-
-```json
+``` json
 {
-  "question": ""
+  "question":"What issue did I report?"
 }
 ```
 
-### Response
+Expected: Assistant answers using conversation history without creating
+another ticket.
 
-```json
+### Validation
+
+``` json
 {
-  "status": false,
-  "message": "Question cannot be empty",
-  "data": null
+  "question":""
 }
 ```
 
----
+Expected: Question cannot be empty.
 
-## Unsupported Query
-
-### Request
-
-```json
-{
-  "question": "Increase my salary"
-}
-```
-
-### Response
-
-```json
-{
-  "status": false,
-  "message": "Unable to process the request.",
-  "data": null
-}
-```
-
----
+------------------------------------------------------------------------
 
 # Unit Tests
 
-Run:
-
-```bash
+``` bash
 pytest -v
 ```
 
-Test files:
-
-```text
-test_ticket_service.py
-test_tool_router.py
-test_ask_api.py
-```
-
-Expected Output:
-
-```text
-============================= test session starts =============================
-
-app/tests/test_ticket_service.py::test_create_ticket PASSED
-app/tests/test_tool_router.py::test_process_question PASSED
-app/tests/test_ask_api.py::test_ask_endpoint PASSED
-
-============================= 3 passed =============================
-```
----
+------------------------------------------------------------------------
 
 # Future Enhancements
 
-- Conversation Memory
-- Retrieval Augmented Generation (RAG)
-- Database Integration
-- Docker Support
-- LangChain Integration
-- LangGraph Integration
-- Authentication and Authorization
-- Multiple Business Workflows
+-   Retrieval Augmented Generation (RAG)
+-   Docker
+-   LangChain
+-   LangGraph
+-   Authentication & Authorization
+-   Multi-user conversation sessions
+-   Memory summarization
 
----
+------------------------------------------------------------------------
 
 # Evaluation Criteria Covered
 
-- ✅ Functionality
-- ✅ Code Quality
-- ✅ Problem Solving Approach
-- ✅ AI Workflow Design
-- ✅ API Design
-- ✅ Tool Calling
-- ✅ Error Handling and Fallback Logic
-- ✅ Unit Testing
-- ✅ End-to-End Working Demo
+-   ✅ Functionality
+-   ✅ Code Quality
+-   ✅ Problem Solving
+-   ✅ AI Workflow Design
+-   ✅ API Design
+-   ✅ Tool Calling
+-   ✅ Conversation Memory
+-   ✅ Error Handling
+-   ✅ Unit Testing
+-   ✅ End-to-End Working Demo
 
----
+------------------------------------------------------------------------
 
 # Author
 
 **Priyanka Gupta**
 
-Python Developer | AI Enthusiast | FastAPI | Ollama | REST APIs
+Python Developer \| AI Enthusiast \| FastAPI \| Ollama \| REST APIs
